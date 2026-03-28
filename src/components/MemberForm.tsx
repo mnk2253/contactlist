@@ -47,8 +47,8 @@ export function MemberForm({ member, isAdmin = false, onSuccess, onCancel }: Mem
       setImageUrl(publicUrl);
     } catch (error: any) {
       console.error('Error uploading image:', error);
-      if (error.message === 'Bucket not found') {
-        alert('Error: Storage bucket "images" not found. Please create a public bucket named "images" in your Supabase dashboard.');
+      if (error.status === 404 || error.message === 'Bucket not found') {
+        alert('Error: Storage bucket "images" not found (404). Please create a public bucket named "images" in your Supabase dashboard or update the code to use your existing bucket name.');
       } else if (error.message?.includes('row-level security')) {
         alert('Error: Permission denied by RLS policy. Please ensure you have added a storage policy in Supabase to allow uploads to the "images" bucket. You can find the SQL to fix this in our recent chat.');
       } else {
