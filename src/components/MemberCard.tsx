@@ -27,7 +27,7 @@ export function MemberCard({ member }: MemberCardProps) {
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const url = `${window.location.origin}/members/${member.id}`;
+      const url = `${window.location.origin}/#/members/${member.id}`;
       await navigator.clipboard.writeText(url);
       setShared(true);
       setTimeout(() => setShared(false), 2000);
