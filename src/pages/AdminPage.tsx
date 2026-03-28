@@ -1,16 +1,22 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/src/lib/supabase';
-import { Member, LifeEvent } from '@/src/types';
+import { Member, LifeEvent, EmergencyContact } from '@/src/types';
 import { MemberForm } from '@/src/components/MemberForm';
 import { EventForm } from '@/src/components/EventForm';
-import { Plus, Edit2, Trash2, Loader2, UserPlus, CheckCircle, XCircle, Users, Calendar, Heart, Skull } from 'lucide-react';
+import { EmergencyContactForm } from '@/src/components/EmergencyContactForm';
+import { Plus, Edit2, Trash2, Loader2, UserPlus, CheckCircle, XCircle, Users, Calendar, Heart, Skull, Phone, Search, Eye, ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
 export function AdminPage() {
-  const [activeTab, setActiveTab] = useState<'members' | 'events'>('members');
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'members' | 'events' | 'emergency'>('members');
   const [members, setMembers] = useState<Member[]>([]);
   const [events, setEvents] = useState<LifeEvent[]>([]);
+  const [contacts, setContacts] = useState<EmergencyContact[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
   
   const [isMemberFormOpen, setIsMemberFormOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | undefined>();
@@ -18,13 +24,58 @@ export function AdminPage() {
   const [isEventFormOpen, setIsEventFormOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<LifeEvent | undefined>();
 
+  const [isContactFormOpen, setIsContactFormOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<EmergencyContact | undefined>();
+
   useEffect(() => {
     if (activeTab === 'members') {
       fetchMembers();
-    } else {
+    } else if (activeTab === 'events') {
       fetchEvents();
+    } else {
+      fetchContacts();
     }
   }, [activeTab]);
+
+  const filteredMembers = members.filter(member =>
+    member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    member.profession.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    member.phone.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getSecondName = (fullName: string) => {
+    const parts = fullName.trim().split(/\s+/);
+    return parts.length > 1 ? parts[1].toLowerCase() : parts[0].toLowerCase();
+  };
+
+  const sortedMembers = [...filteredMembers].sort((a, b) => {
+    if (!sortDirection) return 0;
+    const nameA = getSecondName(a.name);
+    const nameB = getSecondName(b.name);
+    
+    if (sortDirection === 'asc') {
+      return nameA.localeCompare(nameB);
+    } else {
+      return nameB.localeCompare(nameA);
+    }
+  });
+
+  const toggleSort = () => {
+    if (sortDirection === 'asc') setSortDirection('desc');
+    else if (sortDirection === 'desc') setSortDirection(null);
+    else setSortDirection('asc');
+  };
+
+  const filteredEvents = events.filter(event =>
+    event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    event.type.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredContacts = contacts.filter(contact =>
+    contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    contact.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    contact.relationship.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const fetchMembers = async () => {
     setLoading(true);
@@ -55,6 +106,24 @@ export function AdminPage() {
       setEvents(data || []);
     } catch (error) {
       console.error('Error fetching events:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchContacts = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('emergency_contacts')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setContacts(data || []);
+    } catch (error: any) {
+      console.error('Error fetching contacts:', error);
+      alert(`Error fetching emergency contacts: ${error.message || 'Unknown error'}. Please ensure the 'emergency_contacts' table exists in Supabase.`);
     } finally {
       setLoading(false);
     }
@@ -111,6 +180,18 @@ export function AdminPage() {
     }
   };
 
+  const handleDeleteContact = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this contact?')) return;
+    try {
+      const { error } = await supabase.from('emergency_contacts').delete().eq('id', id);
+      if (error) throw error;
+      fetchContacts();
+    } catch (error) {
+      console.error('Error deleting contact:', error);
+      alert('Failed to delete contact');
+    }
+  };
+
   const handleApproveMember = async (id: string) => {
     try {
       const { error } = await supabase.from('members').update({ is_approved: true }).eq('id', id);
@@ -144,6 +225,17 @@ export function AdminPage() {
     setIsEventFormOpen(true);
   };
 
+  const handleAddContact = () => {
+    setEditingContact(undefined);
+    setIsContactFormOpen(true);
+  };
+
+  const handleAddAction = () => {
+    if (activeTab === 'members') handleAddMember();
+    else if (activeTab === 'events') handleAddEvent();
+    else handleAddContact();
+  };
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
@@ -173,15 +265,46 @@ export function AdminPage() {
             <Calendar size={18} />
             Events
           </button>
+          <button
+            onClick={() => setActiveTab('emergency')}
+            className={cn(
+              "flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all",
+              activeTab === 'emergency' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+            )}
+          >
+            <Phone size={18} />
+            Emergency
+          </button>
         </div>
 
         <button
-          onClick={() => activeTab === 'members' ? handleAddMember() : handleAddEvent()}
+          onClick={handleAddAction}
           className="flex items-center gap-2 rounded-xl bg-zinc-900 px-6 py-2.5 text-sm font-semibold text-white transition-all hover:bg-zinc-800 hover:shadow-lg active:scale-95"
         >
           <Plus size={18} />
-          Add {activeTab === 'members' ? 'Member' : 'Event'}
+          Add {activeTab === 'members' ? 'Member' : activeTab === 'events' ? 'Event' : 'Contact'}
         </button>
+      </div>
+
+      <div className="mb-6 relative max-w-md">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <Search className="h-4 w-4 text-zinc-400" />
+        </div>
+        <input
+          type="text"
+          placeholder={`Search ${activeTab === 'emergency' ? 'contacts' : activeTab}...`}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="block w-full pl-10 pr-10 py-2 border border-zinc-200 rounded-xl text-sm bg-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent shadow-sm transition-all"
+        />
+        {searchTerm && (
+          <button
+            onClick={() => setSearchTerm('')}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-400 hover:text-zinc-600"
+          >
+            <XCircle size={16} />
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -189,20 +312,34 @@ export function AdminPage() {
           <Loader2 className="animate-spin text-zinc-400" size={32} />
         </div>
       ) : activeTab === 'members' ? (
-        members.length > 0 ? (
+        filteredMembers.length > 0 ? (
           <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
             <table className="w-full text-left text-sm">
               <thead className="bg-zinc-50 text-xs font-semibold uppercase tracking-wider text-zinc-500">
                 <tr>
-                  <th className="px-6 py-4">Member</th>
+                  <th 
+                    className="px-6 py-4 cursor-pointer hover:text-zinc-900 transition-colors"
+                    onClick={toggleSort}
+                  >
+                    <div className="flex items-center gap-2">
+                      Member
+                      {sortDirection === 'asc' && <ChevronUp size={14} className="text-zinc-900" />}
+                      {sortDirection === 'desc' && <ChevronDown size={14} className="text-zinc-900" />}
+                      {!sortDirection && <ArrowUpDown size={14} className="opacity-30" />}
+                    </div>
+                  </th>
                   <th className="hidden px-6 py-4 md:table-cell">Profession</th>
                   <th className="hidden px-6 py-4 sm:table-cell">Phone</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {members.map((member) => (
-                  <tr key={member.id} className="group hover:bg-zinc-50/50">
+                {sortedMembers.map((member) => (
+                  <tr 
+                    key={member.id} 
+                    className="group cursor-pointer hover:bg-zinc-50/50"
+                    onClick={() => navigate(`/admin/members/${member.id}`)}
+                  >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-zinc-100">
@@ -221,7 +358,14 @@ export function AdminPage() {
                     <td className="hidden px-6 py-4 text-zinc-600 md:table-cell">{member.profession}</td>
                     <td className="hidden px-6 py-4 text-zinc-600 sm:table-cell">{member.phone}</td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                        <button 
+                          onClick={() => navigate(`/admin/members/${member.id}`)}
+                          className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900"
+                          title="View Details"
+                        >
+                          <Eye size={16} />
+                        </button>
                         {!member.is_approved && (
                           <>
                             <button onClick={() => handleApproveMember(member.id)} className="flex items-center gap-1 rounded-lg bg-green-50 px-2 py-1 text-xs font-semibold text-green-700 hover:bg-green-100" title="Approve Member">
@@ -248,11 +392,11 @@ export function AdminPage() {
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
             <UserPlus size={48} strokeWidth={1} />
-            <p className="mt-4 text-lg">No members yet.</p>
+            <p className="mt-4 text-lg">{searchTerm ? `No members matching "${searchTerm}"` : "No members yet."}</p>
           </div>
         )
-      ) : (
-        events.length > 0 ? (
+      ) : activeTab === 'events' ? (
+        filteredEvents.length > 0 ? (
           <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
             <table className="w-full text-left text-sm">
               <thead className="bg-zinc-50 text-xs font-semibold uppercase tracking-wider text-zinc-500">
@@ -264,7 +408,7 @@ export function AdminPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {events.map((event) => (
+                {filteredEvents.map((event) => (
                   <tr key={event.id} className="group hover:bg-zinc-50/50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -311,7 +455,46 @@ export function AdminPage() {
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
             <Calendar size={48} strokeWidth={1} />
-            <p className="mt-4 text-lg">No events yet.</p>
+            <p className="mt-4 text-lg">{searchTerm ? `No events matching "${searchTerm}"` : "No events yet."}</p>
+          </div>
+        )
+      ) : (
+        filteredContacts.length > 0 ? (
+          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-zinc-50 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                <tr>
+                  <th className="px-6 py-4">Name</th>
+                  <th className="px-6 py-4">Phone</th>
+                  <th className="px-6 py-4">Relationship</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {filteredContacts.map((contact) => (
+                  <tr key={contact.id} className="group hover:bg-zinc-50/50">
+                    <td className="px-6 py-4 font-medium text-zinc-900">{contact.name}</td>
+                    <td className="px-6 py-4 text-zinc-600">{contact.phone}</td>
+                    <td className="px-6 py-4 text-zinc-600">{contact.relationship}</td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => { setEditingContact(contact); setIsContactFormOpen(true); }} className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900">
+                          <Edit2 size={16} />
+                        </button>
+                        <button onClick={() => handleDeleteContact(contact.id)} className="rounded-lg p-2 text-zinc-400 hover:bg-red-50 hover:text-red-600">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
+            <Phone size={48} strokeWidth={1} />
+            <p className="mt-4 text-lg">{searchTerm ? `No contacts matching "${searchTerm}"` : "No emergency contacts yet."}</p>
           </div>
         )
       )}
@@ -330,6 +513,14 @@ export function AdminPage() {
           event={editingEvent}
           onSuccess={() => { setIsEventFormOpen(false); fetchEvents(); }}
           onCancel={() => setIsEventFormOpen(false)}
+        />
+      )}
+
+      {isContactFormOpen && (
+        <EmergencyContactForm
+          contact={editingContact}
+          onSuccess={() => { setIsContactFormOpen(false); fetchContacts(); }}
+          onCancel={() => setIsContactFormOpen(false)}
         />
       )}
     </div>

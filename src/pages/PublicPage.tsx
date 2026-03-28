@@ -4,7 +4,7 @@ import { supabase } from '@/src/lib/supabase';
 import { Member } from '@/src/types';
 import { MemberCard } from '@/src/components/MemberCard';
 import { MemberForm } from '@/src/components/MemberForm';
-import { Search, Loader2, Users, UserPlus, CheckCircle2, MessageCircle, Calendar } from 'lucide-react';
+import { Search, Loader2, Users, UserPlus, CheckCircle2, MessageCircle, Calendar, Phone, XCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 
 const containerVariants = {
@@ -12,7 +12,7 @@ const containerVariants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 1, // 1 second delay between items as requested
+      staggerChildren: 0.2, // 0.2 second delay between items as requested
     },
   },
 };
@@ -23,7 +23,7 @@ const itemVariants = {
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.5,
+      duration: 0.3,
     },
   },
 };
@@ -65,27 +65,38 @@ export function PublicPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-12 text-center">
-        <h1 className="animate-rainbow bg-clip-text text-4xl font-black tracking-tight text-transparent sm:text-5xl" style={{ WebkitBackgroundClip: 'text' }}>
-          Sreedashganti Contact List
+        <h1 className="animate-rainbow bg-clip-text text-4xl font-black tracking-tight text-transparent sm:text-6xl" style={{ WebkitBackgroundClip: 'text' }}>
+          Sreedashganti Community Directory
         </h1>
-        <div className="mt-4 flex flex-col items-center justify-center gap-4">
-          <div className="flex items-center gap-2">
-            <p className="text-zinc-500">
-              Connect with our talented community of professionals.
+        <div className="mt-6 flex flex-col items-center justify-center gap-6">
+          <div className="max-w-2xl px-4">
+            <p className="text-lg font-medium text-zinc-500 sm:text-xl">
+              A professional directory to connect, support, and grow our community members through a unified contact list and life event tracking.
             </p>
             {!loading && members.length > 0 && (
-              <span className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-800">
-                {members.length} Total
-              </span>
+              <div className="mt-4 flex items-center justify-center gap-2">
+                <span className="inline-flex items-center rounded-full bg-zinc-100 px-3 py-1 text-sm font-bold text-zinc-800">
+                  {members.length} Members
+                </span>
+              </div>
             )}
           </div>
-          <Link 
-            to="/events"
-            className="group flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-4 py-1.5 text-sm font-medium text-zinc-600 transition-all hover:border-zinc-900 hover:text-zinc-900"
-          >
-            <Calendar size={16} className="text-zinc-400 transition-colors group-hover:text-zinc-900" />
-            View Life Events (Marriage & Death)
-          </Link>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link 
+              to="/events"
+              className="group flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-4 py-1.5 text-sm font-medium text-zinc-600 transition-all hover:border-zinc-900 hover:text-zinc-900"
+            >
+              <Calendar size={16} className="text-zinc-400 transition-colors group-hover:text-zinc-900" />
+              View Life Events
+            </Link>
+            <Link 
+              to="/emergency"
+              className="group flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-4 py-1.5 text-sm font-medium text-red-600 transition-all hover:border-red-600 hover:bg-red-50"
+            >
+              <Phone size={16} className="text-red-400 transition-colors group-hover:text-red-600" />
+              Emergency Contacts
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -97,8 +108,16 @@ export function PublicPage() {
             placeholder="Search by name, profession or number..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-2xl border border-zinc-200 bg-white py-3 pl-10 pr-4 text-sm shadow-sm transition-all focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
+            className="w-full rounded-2xl border border-zinc-200 bg-white py-3 pl-10 pr-10 text-sm shadow-sm transition-all focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+            >
+              <XCircle size={18} />
+            </button>
+          )}
         </div>
         <button
           onClick={() => setIsFormOpen(true)}
@@ -144,7 +163,9 @@ export function PublicPage() {
       ) : (
         <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
           <Users size={48} strokeWidth={1} />
-          <p className="mt-4 text-lg">No members found matching your search.</p>
+          <p className="mt-4 text-lg">
+            {searchQuery ? `No members found matching "${searchQuery}"` : "No members found."}
+          </p>
         </div>
       )}
       {isFormOpen && (

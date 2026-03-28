@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Users, ShieldCheck, LogOut, MessageCircle, Calendar } from 'lucide-react';
+import { Users, ShieldCheck, LogOut, MessageCircle, Calendar, Phone } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { supabase } from '@/src/lib/supabase';
 import { useEffect, useState } from 'react';
@@ -63,15 +63,18 @@ export function Navbar() {
             <span className="hidden sm:inline">Events</span>
           </Link>
 
-          <a
-            href="https://chat.whatsapp.com/G8BepLFH5sPKj0WqrNoS1C"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-green-600 transition-colors hover:bg-green-50 hover:text-green-700"
+          <Link
+            to="/emergency"
+            className={cn(
+              "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+              location.pathname === "/emergency" 
+                ? "bg-zinc-100 text-zinc-900" 
+                : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900"
+            )}
           >
-            <MessageCircle size={18} />
-            <span className="hidden md:inline">Join WhatsApp</span>
-          </a>
+            <Phone size={18} />
+            <span className="hidden sm:inline">Emergency</span>
+          </Link>
           
           {user ? (
             <>

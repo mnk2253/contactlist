@@ -21,6 +21,7 @@ export function MemberForm({ member, isAdmin = false, onSuccess, onCancel }: Mem
     name: member?.name || '',
     phone: member?.phone || '',
     profession: member?.profession || '',
+    blood_group: member?.blood_group || '',
   });
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -87,6 +88,8 @@ export function MemberForm({ member, isAdmin = false, onSuccess, onCancel }: Mem
       console.error('Error saving member:', error);
       if (error.message?.includes('column "is_approved" of relation "members" does not exist')) {
         alert('Error: The "is_approved" column is missing in your database. Please run the SQL provided in our chat to fix this.');
+      } else if (error.message?.includes('column "blood_group" of relation "members" does not exist') || error.message?.includes('blood_group')) {
+        alert('Error: The "blood_group" column is missing in your database. Please run the SQL provided in our chat to fix this.');
       } else if (error.message?.includes('row-level security')) {
         alert('Error: Permission denied by RLS policy. Please ensure you have added a policy in Supabase to allow inserts to the "members" table.');
       } else {
@@ -192,6 +195,27 @@ export function MemberForm({ member, isAdmin = false, onSuccess, onCancel }: Mem
                 className="mt-1 w-full rounded-lg border border-zinc-200 px-4 py-2 text-sm focus:border-zinc-900 focus:outline-none"
                 placeholder="+1 234 567 890"
               />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                Blood Group
+              </label>
+              <select
+                value={formData.blood_group}
+                onChange={(e) => setFormData({ ...formData, blood_group: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-zinc-200 px-4 py-2 text-sm focus:border-zinc-900 focus:outline-none"
+              >
+                <option value="">Select Blood Group</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
             </div>
           </div>
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/src/lib/supabase';
 import { LifeEvent } from '@/src/types';
-import { Calendar, Heart, Skull, Loader2, Search } from 'lucide-react';
+import { Calendar, Heart, Skull, Loader2, Search, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 
@@ -102,8 +102,16 @@ export function EventsPage() {
             placeholder="Search by name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-2xl border border-zinc-200 bg-white py-3 pl-10 pr-4 text-sm shadow-sm transition-all focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
+            className="w-full rounded-2xl border border-zinc-200 bg-white py-3 pl-10 pr-10 text-sm shadow-sm transition-all focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+            >
+              <XCircle size={18} />
+            </button>
+          )}
         </div>
 
         <div className="flex gap-2">
@@ -190,7 +198,9 @@ export function EventsPage() {
       ) : (
         <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
           <Calendar size={48} strokeWidth={1} />
-          <p className="mt-4 text-lg">No events found matching your search.</p>
+          <p className="mt-4 text-lg">
+            {searchQuery ? `No events found matching "${searchQuery}"` : "No events found."}
+          </p>
         </div>
       )}
     </div>

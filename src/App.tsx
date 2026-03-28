@@ -1,8 +1,11 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { PublicPage } from './pages/PublicPage';
+import { MemberDetailPage } from './pages/MemberDetailPage';
 import { EventsPage } from './pages/EventsPage';
+import { EmergencyContactsPage } from './pages/EmergencyContactsPage';
 import { AdminPage } from './pages/AdminPage';
+import { AdminMemberDetailPage } from './pages/AdminMemberDetailPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
@@ -14,13 +17,23 @@ export default function App() {
         <main>
           <Routes>
             <Route path="/" element={<PublicPage />} />
+            <Route path="/members/:id" element={<MemberDetailPage />} />
             <Route path="/events" element={<EventsPage />} />
+            <Route path="/emergency" element={<EmergencyContactsPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route 
               path="/admin" 
               element={
                 <ProtectedRoute>
                   <AdminPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/members/:id" 
+              element={
+                <ProtectedRoute>
+                  <AdminMemberDetailPage />
                 </ProtectedRoute>
               } 
             />
@@ -32,10 +45,11 @@ export default function App() {
             <div className="mb-6 flex justify-center gap-6">
               <Link to="/" className="text-sm font-medium text-zinc-500 hover:text-zinc-900">Contact List</Link>
               <Link to="/events" className="text-sm font-medium text-zinc-500 hover:text-zinc-900">Life Events</Link>
+              <Link to="/emergency" className="text-sm font-medium text-zinc-500 hover:text-zinc-900">Emergency</Link>
               <Link to="/admin" className="text-sm font-medium text-zinc-500 hover:text-zinc-900">Admin Panel</Link>
             </div>
             <p className="text-sm text-zinc-500">
-              © {new Date().getFullYear()} Sreedashganti Contact List. All rights reserved.
+              © {new Date().getFullYear()} Sreedashganti Community Directory. All rights reserved.
             </p>
           </div>
         </footer>

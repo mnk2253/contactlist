@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Member } from '@/src/types';
-import { Phone, Briefcase, Calendar, Copy, Check } from 'lucide-react';
+import { Phone, Briefcase, Calendar, Copy, Check, Share2, Droplets } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface MemberCardProps {
@@ -8,9 +9,12 @@ interface MemberCardProps {
 }
 
 export function MemberCard({ member }: MemberCardProps) {
+  const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+  const [shared, setShared] = useState(false);
 
-  const handleCopy = async () => {
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     try {
       await navigator.clipboard.writeText(member.phone);
       setCopied(true);
@@ -20,10 +24,56 @@ export function MemberCard({ member }: MemberCardProps) {
     }
   };
 
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const url = `${window.location.origin}/members/${member.id}`;
+      await navigator.clipboard.writeText(url);
+      setShared(true);
+      setTimeout(() => setShared(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy link: ', err);
+    }
+  };
+
   return (
-    <div className="animate-rainbow rounded-2xl p-[2px] transition-all hover:scale-[1.02] hover:shadow-2xl hover:shadow-zinc-400/20">
+    <div 
+      className="animate-rainbow rounded-2xl p-[2px] transition-all hover:scale-[1.02] hover:shadow-2xl hover:shadow-zinc-400/20 cursor-pointer"
+      onClick={() => navigate(`/members/${member.id}`)}
+    >
       <div className="group relative h-full overflow-hidden rounded-[14px] border border-zinc-200 bg-white p-3 transition-all sm:p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        {/* Share Button */}
+        <button
+          onClick={handleShare}
+          className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-zinc-50 text-zinc-400 transition-all hover:bg-zinc-900 hover:text-white active:scale-90 sm:h-9 sm:w-9"
+          title="Share profile"
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            {shared ? (
+              <motion.div
+                key="check"
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.5, opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                <Check size={16} className="text-emerald-500" />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="share"
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.5, opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                <Share2 size={16} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </button>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
         <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-zinc-100 sm:h-32 sm:w-32">
           {member.image_url ? (
             <img
@@ -86,6 +136,12 @@ export function MemberCard({ member }: MemberCardProps) {
               <Calendar size={10} className="sm:size-3" />
               <span>Joined {new Date(member.created_at).toLocaleDateString()}</span>
             </div>
+            {member.blood_group && (
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-red-500 sm:gap-2 sm:text-xs">
+                <Droplets size={10} className="sm:size-3" />
+                <span>Blood Group: {member.blood_group}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
