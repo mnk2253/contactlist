@@ -14,7 +14,8 @@ import {
   Download,
   Maximize2,
   X,
-  Droplets
+  Droplets,
+  Gift
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -79,6 +80,19 @@ export function MemberDetailPage() {
       console.error('Error downloading image:', error);
       alert('Failed to download image.');
     }
+  };
+
+  const getBirthDateLabel = (value?: string) => {
+    if (!value) return null;
+    const birthDate = new Date(value);
+    if (Number.isNaN(birthDate.getTime())) return null;
+
+    const age = new Date().getFullYear() - birthDate.getFullYear();
+    const monthDiff = new Date().getMonth() - birthDate.getMonth();
+    const dayDiff = new Date().getDate() - birthDate.getDate();
+    const actualAge = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
+
+    return `${birthDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} • ${actualAge} years`;
   };
 
   if (loading) {
@@ -154,10 +168,20 @@ export function MemberDetailPage() {
               </h1>
               <p className="text-zinc-500">{member.profession}</p>
 
-              {member.blood_group && (
-                <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-600">
-                  <Droplets size={14} />
-                  {member.blood_group}
+              {(member.date_of_birth || member.blood_group) && (
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                  {member.date_of_birth && (
+                    <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+                      <Gift size={14} />
+                      {getBirthDateLabel(member.date_of_birth)}
+                    </div>
+                  )}
+                  {member.blood_group && (
+                    <div className="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-600">
+                      <Droplets size={14} />
+                      {member.blood_group}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

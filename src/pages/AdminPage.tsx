@@ -1,19 +1,21 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/src/lib/supabase';
-import { Member, LifeEvent, EmergencyContact } from '@/src/types';
+import { Member, LifeEvent, EmergencyContact, Notice } from '@/src/types';
 import { MemberForm } from '@/src/components/MemberForm';
 import { EventForm } from '@/src/components/EventForm';
 import { EmergencyContactForm } from '@/src/components/EmergencyContactForm';
-import { Plus, Edit2, Trash2, Loader2, UserPlus, CheckCircle, XCircle, Users, Calendar, Heart, Skull, Phone, Search, Eye, ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
+import { NoticeForm } from '@/src/components/NoticeForm';
+import { Plus, Edit2, Trash2, Loader2, UserPlus, CheckCircle, XCircle, Users, Calendar, Heart, Skull, Phone, Search, Eye, ChevronUp, ChevronDown, ArrowUpDown, Megaphone } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
 export function AdminPage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'members' | 'events' | 'emergency'>('members');
+  const [activeTab, setActiveTab] = useState<'members' | 'events' | 'emergency' | 'notices'>('members');
   const [members, setMembers] = useState<Member[]>([]);
   const [events, setEvents] = useState<LifeEvent[]>([]);
   const [contacts, setContacts] = useState<EmergencyContact[]>([]);
+  const [notices, setNotices] = useState<Notice[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
@@ -23,19 +25,42 @@ export function AdminPage() {
   
   const [isEventFormOpen, setIsEventFormOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<LifeEvent | undefined>();
+  const [newEventName, setNewEventName] = useState('');
+  const [newEventType, setNewEventType] = useState<LifeEvent['type']>('marriage');
 
   const [isContactFormOpen, setIsContactFormOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<EmergencyContact | undefined>();
+  const [isNoticeFormOpen, setIsNoticeFormOpen] = useState(false);
+  const [editingNotice, setEditingNotice] = useState<Notice | undefined>();
 
   useEffect(() => {
     if (activeTab === 'members') {
       fetchMembers();
     } else if (activeTab === 'events') {
       fetchEvents();
-    } else {
+    } else if (activeTab === 'emergency') {
       fetchContacts();
+    } else {
+      fetchNotices();
     }
   }, [activeTab]);
+
+  const approvedMembers = members.filter((member) => member.is_approved).length;
+  const pendingMembers = members.length - approvedMembers;
+  const upcomingBirthdays = members.filter((member) => {
+    if (!member.date_of_birth) return false;
+    const birthDate = new Date(member.date_of_birth);
+    if (Number.isNaN(birthDate.getTime())) return false;
+
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const nextBirthday = new Date(currentYear, birthDate.getMonth(), birthDate.getDate());
+    const nextYearBirthday = new Date(currentYear + 1, birthDate.getMonth(), birthDate.getDate());
+    const upcomingWindow = 30 * 24 * 60 * 60 * 1000;
+
+    const delta = (nextBirthday < today ? nextYearBirthday : nextBirthday).getTime() - today.getTime();
+    return delta <= upcomingWindow && delta >= 0;
+  }).length;
 
   const filteredMembers = members.filter(member =>
     member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -75,6 +100,11 @@ export function AdminPage() {
     contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     contact.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
     contact.relationship.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredNotices = notices.filter(notice =>
+    notice.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    notice.content.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const fetchMembers = async () => {
@@ -124,6 +154,23 @@ export function AdminPage() {
     } catch (error: any) {
       console.error('Error fetching contacts:', error);
       alert(`Error fetching emergency contacts: ${error.message || 'Unknown error'}. Please ensure the 'emergency_contacts' table exists in Supabase.`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchNotices = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('notices')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setNotices(data || []);
+    } catch (error) {
+      console.error('Error fetching notices:', error);
     } finally {
       setLoading(false);
     }
@@ -192,6 +239,29 @@ export function AdminPage() {
     }
   };
 
+  const handleDeleteNotice = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this notice?')) return;
+    try {
+      const { error } = await supabase.from('notices').delete().eq('id', id);
+      if (error) throw error;
+      fetchNotices();
+    } catch (error) {
+      console.error('Error deleting notice:', error);
+      alert('Failed to delete notice');
+    }
+  };
+
+  const handleApproveNotice = async (id: string) => {
+    try {
+      const { error } = await supabase.from('notices').update({ is_published: true }).eq('id', id);
+      if (error) throw error;
+      fetchNotices();
+    } catch (error: any) {
+      console.error('Error approving notice:', error);
+      alert(`Failed to approve notice: ${error.message || 'Unknown error'}`);
+    }
+  };
+
   const handleApproveMember = async (id: string) => {
     try {
       const { error } = await supabase.from('members').update({ is_approved: true }).eq('id', id);
@@ -222,6 +292,15 @@ export function AdminPage() {
 
   const handleAddEvent = () => {
     setEditingEvent(undefined);
+    setNewEventName('');
+    setNewEventType('marriage');
+    setIsEventFormOpen(true);
+  };
+
+  const handleAddMemberEvent = (member: Member, type: LifeEvent['type']) => {
+    setEditingEvent(undefined);
+    setNewEventName(member.name);
+    setNewEventType(type);
     setIsEventFormOpen(true);
   };
 
@@ -230,10 +309,48 @@ export function AdminPage() {
     setIsContactFormOpen(true);
   };
 
+  const handleAddNotice = () => {
+    setEditingNotice(undefined);
+    setIsNoticeFormOpen(true);
+  };
+
   const handleAddAction = () => {
     if (activeTab === 'members') handleAddMember();
     else if (activeTab === 'events') handleAddEvent();
-    else handleAddContact();
+    else if (activeTab === 'emergency') handleAddContact();
+    else handleAddNotice();
+  };
+
+  const handleExportMembers = () => {
+    if (!members.length) {
+      alert('No member data to export.');
+      return;
+    }
+
+    const headers = ['Name', 'Profession', 'Phone', 'Blood Group', 'Date of Birth', 'Approved', 'Joined On'];
+    const rows = members.map((member) => [
+      member.name,
+      member.profession,
+      member.phone,
+      member.blood_group || '',
+      member.date_of_birth || '',
+      member.is_approved ? 'Yes' : 'No',
+      new Date(member.created_at).toISOString().slice(0, 10)
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'community_members.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -275,6 +392,16 @@ export function AdminPage() {
             <Phone size={18} />
             Emergency
           </button>
+          <button
+            onClick={() => setActiveTab('notices')}
+            className={cn(
+              "flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all",
+              activeTab === 'notices' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+            )}
+          >
+            <Megaphone size={18} />
+            Notices
+          </button>
         </div>
 
         <button
@@ -282,27 +409,56 @@ export function AdminPage() {
           className="flex items-center gap-2 rounded-xl bg-zinc-900 px-6 py-2.5 text-sm font-semibold text-white transition-all hover:bg-zinc-800 hover:shadow-lg active:scale-95"
         >
           <Plus size={18} />
-          Add {activeTab === 'members' ? 'Member' : activeTab === 'events' ? 'Event' : 'Contact'}
+          Add {activeTab === 'members' ? 'Member' : activeTab === 'events' ? 'Event' : activeTab === 'emergency' ? 'Contact' : 'Notice'}
         </button>
       </div>
 
-      <div className="mb-6 relative max-w-md">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Search className="h-4 w-4 text-zinc-400" />
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Total Members</p>
+          <p className="mt-2 text-3xl font-black text-zinc-900">{members.length}</p>
         </div>
-        <input
-          type="text"
-          placeholder={`Search ${activeTab === 'emergency' ? 'contacts' : activeTab}...`}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="block w-full pl-10 pr-10 py-2 border border-zinc-200 rounded-xl text-sm bg-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent shadow-sm transition-all"
-        />
-        {searchTerm && (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Approved</p>
+          <p className="mt-2 text-3xl font-black text-emerald-600">{approvedMembers}</p>
+        </div>
+        <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Pending</p>
+          <p className="mt-2 text-3xl font-black text-amber-600">{pendingMembers}</p>
+        </div>
+        <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Upcoming Birthdays</p>
+          <p className="mt-2 text-3xl font-black text-rose-600">{upcomingBirthdays}</p>
+        </div>
+      </div>
+
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative max-w-md flex-1">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-zinc-400" />
+          </div>
+          <input
+            type="text"
+            placeholder={`Search ${activeTab === 'emergency' ? 'contacts' : activeTab}...`}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="block w-full pl-10 pr-10 py-2 border border-zinc-200 rounded-xl text-sm bg-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent shadow-sm transition-all"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-400 hover:text-zinc-600"
+            >
+              <XCircle size={16} />
+            </button>
+          )}
+        </div>
+        {activeTab === 'members' && (
           <button
-            onClick={() => setSearchTerm('')}
-            className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-400 hover:text-zinc-600"
+            onClick={handleExportMembers}
+            className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition-all hover:border-zinc-900 hover:text-zinc-900"
           >
-            <XCircle size={16} />
+            Export CSV
           </button>
         )}
       </div>
@@ -376,6 +532,20 @@ export function AdminPage() {
                             </button>
                           </>
                         )}
+                        <button
+                          onClick={() => handleAddMemberEvent(member, 'marriage')}
+                          className="rounded-lg bg-pink-50 px-2 py-1 text-xs font-semibold text-pink-700 hover:bg-pink-100"
+                          title="Add marriage event"
+                        >
+                          Marriage
+                        </button>
+                        <button
+                          onClick={() => handleAddMemberEvent(member, 'death')}
+                          className="rounded-lg bg-zinc-100 px-2 py-1 text-xs font-semibold text-zinc-700 hover:bg-zinc-200"
+                          title="Add death event"
+                        >
+                          Death
+                        </button>
                         <button onClick={() => { setEditingMember(member); setIsMemberFormOpen(true); }} className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900">
                           <Edit2 size={16} />
                         </button>
@@ -393,6 +563,55 @@ export function AdminPage() {
           <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
             <UserPlus size={48} strokeWidth={1} />
             <p className="mt-4 text-lg">{searchTerm ? `No members matching "${searchTerm}"` : "No members yet."}</p>
+          </div>
+        )
+      ) : activeTab === 'notices' ? (
+        filteredNotices.length > 0 ? (
+          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-zinc-50 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                <tr>
+                  <th className="px-6 py-4">Title</th>
+                  <th className="hidden px-6 py-4 md:table-cell">Notice</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="hidden px-6 py-4 sm:table-cell">Date</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {filteredNotices.map((notice) => (
+                  <tr key={notice.id} className="group hover:bg-zinc-50/50">
+                    <td className="px-6 py-4 font-medium text-zinc-900">{notice.title}</td>
+                    <td className="hidden max-w-md truncate px-6 py-4 text-zinc-600 md:table-cell">{notice.content}</td>
+                    <td className="px-6 py-4">
+                      {notice.is_published ? (
+                        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">Published</span>
+                      ) : (
+                        <button onClick={() => handleApproveNotice(notice.id)} className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 hover:bg-amber-100">
+                          Approve
+                        </button>
+                      )}
+                    </td>
+                    <td className="hidden px-6 py-4 text-zinc-600 sm:table-cell">{new Date(notice.created_at).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => { setEditingNotice(notice); setIsNoticeFormOpen(true); }} className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900" title="Edit Notice">
+                          <Edit2 size={16} />
+                        </button>
+                        <button onClick={() => handleDeleteNotice(notice.id)} className="rounded-lg p-2 text-zinc-400 hover:bg-red-50 hover:text-red-600" title="Delete Notice">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
+            <Megaphone size={48} strokeWidth={1} />
+            <p className="mt-4 text-lg">{searchTerm ? `No notices matching "${searchTerm}"` : 'No notices yet.'}</p>
           </div>
         )
       ) : activeTab === 'events' ? (
@@ -511,6 +730,8 @@ export function AdminPage() {
       {isEventFormOpen && (
         <EventForm
           event={editingEvent}
+          initialName={newEventName}
+          initialType={newEventType}
           onSuccess={() => { setIsEventFormOpen(false); fetchEvents(); }}
           onCancel={() => setIsEventFormOpen(false)}
         />
@@ -521,6 +742,15 @@ export function AdminPage() {
           contact={editingContact}
           onSuccess={() => { setIsContactFormOpen(false); fetchContacts(); }}
           onCancel={() => setIsContactFormOpen(false)}
+        />
+      )}
+
+      {isNoticeFormOpen && (
+        <NoticeForm
+          notice={editingNotice}
+          isAdmin={true}
+          onSuccess={() => { setIsNoticeFormOpen(false); fetchNotices(); }}
+          onCancel={() => setIsNoticeFormOpen(false)}
         />
       )}
     </div>

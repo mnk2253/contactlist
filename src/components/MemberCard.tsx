@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Member } from '@/src/types';
-import { Phone, Briefcase, Calendar, Copy, Check, Share2, Droplets } from 'lucide-react';
+import { Phone, PhoneCall, Briefcase, Calendar, Copy, Check, Share2, Droplets, Gift } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface MemberCardProps {
@@ -27,7 +27,7 @@ export function MemberCard({ member }: MemberCardProps) {
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const url = `${window.location.origin}/#/members/${member.id}`;
+      const url = `${window.location.origin}/members/${member.id}`;
       await navigator.clipboard.writeText(url);
       setShared(true);
       setTimeout(() => setShared(false), 2000);
@@ -130,12 +130,29 @@ export function MemberCard({ member }: MemberCardProps) {
                     )}
                   </AnimatePresence>
                 </button>
+                <a
+                  href={`tel:${member.phone}`}
+                  onClick={(event) => event.stopPropagation()}
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-600 transition-all hover:bg-emerald-600 hover:text-white active:scale-90 sm:h-6 sm:w-6"
+                  title={`Call ${member.name}`}
+                  aria-label={`Call ${member.name}`}
+                >
+                  <PhoneCall size={12} />
+                </a>
               </div>
             </div>
             <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 sm:gap-2 sm:text-xs">
               <Calendar size={10} className="sm:size-3" />
               <span>Joined {new Date(member.created_at).toLocaleDateString()}</span>
             </div>
+            {member.date_of_birth && (
+              <div className="flex items-center gap-1.5 text-[10px] font-medium text-amber-600 sm:gap-2 sm:text-xs">
+                <Gift size={10} className="sm:size-3" />
+                <span>
+                  Birthday: {new Date(member.date_of_birth).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                </span>
+              </div>
+            )}
             {member.blood_group && (
               <div className="flex items-center gap-1.5 text-[10px] font-bold text-red-500 sm:gap-2 sm:text-xs">
                 <Droplets size={10} className="sm:size-3" />

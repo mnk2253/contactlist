@@ -22,6 +22,7 @@ export function MemberForm({ member, isAdmin = false, onSuccess, onCancel }: Mem
     phone: member?.phone || '',
     profession: member?.profession || '',
     blood_group: member?.blood_group || '',
+    date_of_birth: member?.date_of_birth || '',
   });
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,8 +67,9 @@ export function MemberForm({ member, isAdmin = false, onSuccess, onCancel }: Mem
     try {
       const data = {
         ...formData,
+        date_of_birth: formData.date_of_birth || null,
         image_url: imageUrl,
-        is_approved: member ? member.is_approved : isAdmin,
+        is_approved: member ? member.is_approved : true,
       };
 
       if (member) {
@@ -194,6 +196,18 @@ export function MemberForm({ member, isAdmin = false, onSuccess, onCancel }: Mem
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 className="mt-1 w-full rounded-lg border border-zinc-200 px-4 py-2 text-sm focus:border-zinc-900 focus:outline-none"
                 placeholder="+1 234 567 890"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                Date of Birth
+              </label>
+              <input
+                type="date"
+                value={formData.date_of_birth}
+                onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-zinc-200 px-4 py-2 text-sm focus:border-zinc-900 focus:outline-none"
               />
             </div>
 

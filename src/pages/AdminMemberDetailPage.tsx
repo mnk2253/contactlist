@@ -62,13 +62,17 @@ export function AdminMemberDetailPage() {
 
   const handleShare = async () => {
     try {
-      const url = `${window.location.origin}/#/members/${id}`;
+      const url = `${window.location.origin}/members/${id}`;
       await navigator.clipboard.writeText(url);
       setShared(true);
       setTimeout(() => setShared(false), 2000);
     } catch (err) {
       console.error('Failed to copy link:', err);
     }
+  };
+
+  const handleOpenPublicProfile = () => {
+    window.open(`${window.location.origin}/members/${member?.id}`, '_blank', 'noopener,noreferrer');
   };
 
   const handleDownloadImage = async () => {
@@ -158,6 +162,13 @@ export function AdminMemberDetailPage() {
         </button>
         
         <div className="flex gap-3">
+          <button
+            onClick={handleOpenPublicProfile}
+            className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition-all hover:bg-zinc-50"
+          >
+            <ExternalLink size={16} />
+            View Public Page
+          </button>
           <button
             onClick={handleShare}
             className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition-all hover:bg-zinc-50 active:scale-95"

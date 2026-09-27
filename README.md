@@ -18,3 +18,7 @@ View your app in AI Studio: https://ai.studio/apps/5ba2e11b-b34a-42ee-88bc-fece5
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## Notices
+
+To enable admin notices, run [`supabase-notices.sql`](supabase-notices.sql) in the Supabase SQL Editor. Admins can then publish notices from the Notices tab, and published notices will appear on the public homepage.

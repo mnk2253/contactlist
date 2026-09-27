@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/src/lib/supabase';
-import { Member } from '@/src/types';
+import { Member, Notice } from '@/src/types';
 import { MemberCard } from '@/src/components/MemberCard';
 import { MemberForm } from '@/src/components/MemberForm';
-import { Search, Loader2, Users, UserPlus, CheckCircle2, MessageCircle, Calendar, Phone, XCircle } from 'lucide-react';
+import { NoticeForm } from '@/src/components/NoticeForm';
+import { Search, Loader2, Users, UserPlus, CheckCircle2, MessageCircle, Calendar, Phone, XCircle, Megaphone, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
 
 const containerVariants = {
@@ -30,14 +31,44 @@ const itemVariants = {
 
 export function PublicPage() {
   const [members, setMembers] = useState<Member[]>([]);
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const [activeNotice, setActiveNotice] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [birthdayFilter, setBirthdayFilter] = useState<'all' | 'upcoming'>('all');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isNoticeFormOpen, setIsNoticeFormOpen] = useState(false);
+  const [showNoticeSuccess, setShowNoticeSuccess] = useState(false);
 
   useEffect(() => {
     fetchMembers();
+    fetchNotices();
   }, []);
+
+  useEffect(() => {
+    if (notices.length < 2) return;
+    const interval = window.setInterval(() => {
+      setActiveNotice((current) => (current + 1) % notices.length);
+    }, 3000);
+
+    return () => window.clearInterval(interval);
+  }, [notices.length]);
+
+  const fetchNotices = async () => {
+    const { data, error } = await supabase
+      .from('notices')
+      .select('*')
+      .eq('is_published', true)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    if (error) {
+      console.error('Error fetching notices:', error);
+      return;
+    }
+    setNotices(data || []);
+  };
 
   const fetchMembers = async () => {
     try {
@@ -56,11 +87,36 @@ export function PublicPage() {
     }
   };
 
-  const filteredMembers = members.filter(member => 
-    member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    member.profession.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    member.phone.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const isUpcomingBirthday = (dob?: string) => {
+    if (!dob) return false;
+    const birthDate = new Date(dob);
+    if (Number.isNaN(birthDate.getTime())) return false;
+
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const nextBirthday = new Date(currentYear, birthDate.getMonth(), birthDate.getDate());
+
+    if (nextBirthday < today) {
+      const nextYearBirthday = new Date(currentYear + 1, birthDate.getMonth(), birthDate.getDate());
+      return (nextYearBirthday.getTime() - today.getTime()) <= 30 * 24 * 60 * 60 * 1000;
+    }
+
+    return (nextBirthday.getTime() - today.getTime()) <= 30 * 24 * 60 * 60 * 1000;
+  };
+
+  const filteredMembers = members.filter(member => {
+    const matchesSearch =
+      member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.profession.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.phone.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesBirthdayFilter = birthdayFilter === 'all' || isUpcomingBirthday(member.date_of_birth);
+    return matchesSearch && matchesBirthdayFilter;
+  });
+
+  const goToNotice = (index: number) => {
+    setActiveNotice((index + notices.length) % notices.length);
+  };
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -96,9 +152,78 @@ export function PublicPage() {
               <Phone size={16} className="text-red-400 transition-colors group-hover:text-red-600" />
               Emergency Contacts
             </Link>
+            <button
+              onClick={() => setIsNoticeFormOpen(true)}
+              className="group flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-1.5 text-sm font-medium text-amber-700 transition-all hover:border-amber-400 hover:bg-amber-100"
+            >
+              <Megaphone size={16} />
+              Submit Notice
+            </button>
           </div>
         </div>
       </div>
+
+      {notices.length > 0 && (
+        <section className="mb-10 rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm sm:p-6">
+          <div className="mb-4 flex items-center gap-2 text-amber-800">
+            <Megaphone size={20} />
+            <h2 className="text-lg font-bold">Latest Notices</h2>
+          </div>
+          <div className="relative overflow-hidden rounded-2xl border border-amber-100 bg-white">
+            <motion.article
+              key={notices[activeNotice].id}
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.35 }}
+              className="grid min-h-[220px] md:grid-cols-[minmax(0,1fr)_280px]"
+            >
+              <div className="p-5 sm:p-7">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="text-xl font-bold text-zinc-900">{notices[activeNotice].title}</h3>
+                  <time className="shrink-0 text-xs text-zinc-400">
+                    {new Date(notices[activeNotice].created_at).toLocaleDateString()}
+                  </time>
+                </div>
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-zinc-600">{notices[activeNotice].content}</p>
+              </div>
+              {notices[activeNotice].image_url && (
+                <img src={notices[activeNotice].image_url} alt={notices[activeNotice].title} className="h-48 w-full object-cover md:h-full" />
+              )}
+            </motion.article>
+
+            {notices.length > 1 && (
+              <>
+                <button
+                  onClick={() => goToNotice(activeNotice - 1)}
+                  className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-zinc-600 shadow-md transition hover:bg-zinc-900 hover:text-white"
+                  title="Previous notice"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <button
+                  onClick={() => goToNotice(activeNotice + 1)}
+                  className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-zinc-600 shadow-md transition hover:bg-zinc-900 hover:text-white"
+                  title="Next notice"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </>
+            )}
+          </div>
+          {notices.length > 1 && (
+            <div className="mt-4 flex justify-center gap-2">
+              {notices.map((notice, index) => (
+                <button
+                  key={notice.id}
+                  onClick={() => goToNotice(index)}
+                  className={`h-2 rounded-full transition-all ${index === activeNotice ? 'w-6 bg-amber-600' : 'w-2 bg-amber-300 hover:bg-amber-500'}`}
+                  title={`Show notice ${index + 1}`}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="mb-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
         <div className="relative w-full max-w-md">
@@ -118,6 +243,20 @@ export function PublicPage() {
               <XCircle size={18} />
             </button>
           )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setBirthdayFilter('all')}
+            className={`rounded-xl px-3 py-2 text-xs font-semibold transition-all ${birthdayFilter === 'all' ? 'bg-zinc-900 text-white' : 'border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50'}`}
+          >
+            All Members
+          </button>
+          <button
+            onClick={() => setBirthdayFilter('upcoming')}
+            className={`rounded-xl px-3 py-2 text-xs font-semibold transition-all ${birthdayFilter === 'upcoming' ? 'bg-amber-500 text-white' : 'border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50'}`}
+          >
+            Upcoming Birthdays
+          </button>
         </div>
         <button
           onClick={() => setIsFormOpen(true)}
@@ -140,6 +279,14 @@ export function PublicPage() {
           >
             Dismiss
           </button>
+        </div>
+      )}
+
+      {showNoticeSuccess && (
+        <div className="mb-8 flex items-center gap-3 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-amber-800">
+          <Megaphone className="text-amber-600" size={20} />
+          <p className="text-sm font-medium">Notice submitted. An admin will review it before publishing.</p>
+          <button onClick={() => setShowNoticeSuccess(false)} className="ml-auto text-amber-700 hover:text-amber-900">Dismiss</button>
         </div>
       )}
 
@@ -176,6 +323,17 @@ export function PublicPage() {
             setTimeout(() => setShowSuccess(false), 8000);
           }}
           onCancel={() => setIsFormOpen(false)}
+        />
+      )}
+
+      {isNoticeFormOpen && (
+        <NoticeForm
+          onSuccess={() => {
+            setIsNoticeFormOpen(false);
+            setShowNoticeSuccess(true);
+            setTimeout(() => setShowNoticeSuccess(false), 8000);
+          }}
+          onCancel={() => setIsNoticeFormOpen(false)}
         />
       )}
 

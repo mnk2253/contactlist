@@ -5,19 +5,21 @@ import { X, Upload, Loader2, Check, Calendar } from 'lucide-react';
 
 interface EventFormProps {
   event?: LifeEvent;
+  initialName?: string;
+  initialType?: LifeEvent['type'];
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-export function EventForm({ event, onSuccess, onCancel }: EventFormProps) {
+export function EventForm({ event, initialName = '', initialType = 'marriage', onSuccess, onCancel }: EventFormProps) {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState(event?.image_url || '');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
-    name: event?.name || '',
-    type: event?.type || 'marriage',
+    name: event?.name || initialName,
+    type: event?.type || initialType,
     date: event?.date || new Date().toISOString().split('T')[0],
   });
 
